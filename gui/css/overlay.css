@@ -1,0 +1,308 @@
+/* OBS 叠加层
+ *
+ * 两个硬约束：
+ * 1. 必须完全透明：OBS 浏览器源直接叠在画面上，任何底图都会变成黑框；
+ * 2. 尺寸按 --u 倍渲染：卡片是按设计稿的 --u 倍原生排版（不是 CSS 缩放），
+ *    这样在 OBS 里把源缩小显示时，字形仍是矢量缩小，边缘干净。
+ *    420px 设计稿 × 3 倍 = 1260px，OBS 源宽建议填 1300 左右再自由缩放。
+ */
+
+:root {
+  --u: 3;                 /* 尺寸倍数，由设置里的 scale 覆盖 */
+  --card-w: 420px;        /* 设计稿基准宽，实际宽 = card-w * u */
+  --radius: 18px;
+  --blur: 18px;
+  --opacity: 0.62;
+  --accent: #ff6b9d;
+  --fg: #ffffff;
+  --fg-dim: rgba(255, 255, 255, 0.72);
+  --font: "Microsoft YaHei UI", "PingFang SC", "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", "Cascadia Mono", "Consolas", ui-monospace, monospace;
+  /* 统一阴影：放大后字更细，没有阴影在亮画面上会糊掉 */
+  --text-shadow: 0 calc(1px * var(--u)) calc(10px * var(--u)) rgba(0, 0, 0, 0.55),
+                 0 0 calc(2px * var(--u)) rgba(0, 0, 0, 0.35);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  overflow: hidden;
+  font-family: var(--font);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: geometricPrecision;
+}
+
+/* 卡片严格以容器中心为锚点。
+   不用 flex 居中：卡片比视口宽时，flex 的 center 会让左侧被裁掉、
+   右侧反而溢出，看起来就是「没居中」。绝对定位 + translate(-50%,-50%)
+   才是真正以中心为原点，放大缩小时两边对称溢出。 */
+.stage {
+  position: fixed;
+  inset: 0;
+  overflow: visible;
+}
+
+.stage .card {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  /* 缩放只作用于卡片自身，且锚点就是卡片中心，倍数变化时不会跑位 */
+  transform: translate(-50%, -50%) scale(var(--fit, 1));
+  transform-origin: center center;
+}
+
+.card {
+  /* flex: none 必须写。写在 flex 容器里的卡片默认会被压缩，
+     一旦视口比 1260px 窄就缩水，OBS 里缩放比例就跟设置对不上了。 */
+  flex: none;
+  width: calc(var(--card-w) * var(--u));
+  display: flex;
+  gap: calc(14px * var(--u));
+  padding: calc(14px * var(--u));
+  border-radius: calc(var(--radius) * var(--u));
+  color: var(--fg);
+  transition: opacity 0.35s ease, transform 0.35s ease;
+}
+
+.card[hidden] { display: none; }
+
+/* 封面 */
+.cover-wrap {
+  position: relative;
+  width: calc(88px * var(--u));
+  height: calc(88px * var(--u));
+  border-radius: calc(12px * var(--u));
+  overflow: hidden;
+  flex: none;
+  background: rgba(255, 255, 255, 0.08);
+}
+body[data-cover="off"] .cover-wrap { display: none; }
+
+.cover {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.cover-empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: rgba(255, 255, 255, 0.35);
+  font-family: var(--mono);
+  font-size: calc(22px * var(--u));
+}
+.cover-empty::before { content: "♪"; }
+.cover[src] + .cover-empty { display: none; }
+
+/* 信息 */
+.info {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: calc(5px * var(--u));
+}
+
+.title {
+  font-size: calc(19px * var(--u));
+  font-weight: 700;
+  line-height: 1.26;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: var(--text-shadow);
+}
+
+.artist {
+  font-size: calc(14px * var(--u));
+  color: var(--fg-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: var(--text-shadow);
+}
+
+.meta {
+  display: flex;
+  gap: calc(6px * var(--u));
+  margin-top: calc(2px * var(--u));
+  min-height: calc(18px * var(--u));
+}
+body[data-requester="off"] .meta { display: none; }
+
+.badge {
+  font-size: calc(11px * var(--u));
+  line-height: 1;
+  padding: calc(4px * var(--u)) calc(8px * var(--u));
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  color: rgba(255, 255, 255, 0.94);
+  white-space: nowrap;
+  max-width: calc(220px * var(--u));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: 0 0 calc(6px * var(--u)) rgba(0, 0, 0, 0.4);
+}
+.badge-ghost {
+  background: transparent;
+  border: calc(1px * var(--u)) solid rgba(255, 255, 255, 0.3);
+  color: rgba(255, 255, 255, 0.74);
+}
+
+/* 时间：当前 / 总时长。不画进度条，直播画面里一条线反而更干扰 */
+.times {
+  display: flex;
+  align-items: baseline;
+  gap: calc(5px * var(--u));
+  font-family: var(--mono);
+  font-size: calc(12px * var(--u));
+  letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.66);
+  margin-top: calc(3px * var(--u));
+  text-shadow: var(--text-shadow);
+  font-variant-numeric: tabular-nums;
+}
+body[data-time="off"] .times { display: none; }
+
+.times .t-now { color: rgba(255, 255, 255, 0.9); }
+.times .t-sep { opacity: 0.45; }
+
+/* ─────────────────────────────────────────────────────────
+   主题 1 · 玻璃（默认）
+   ───────────────────────────────────────────────────────── */
+body[data-theme="glass"] .card {
+  background: rgba(14, 15, 19, var(--opacity));
+  backdrop-filter: blur(var(--blur)) saturate(1.4);
+  border: calc(1px * var(--u)) solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 calc(12px * var(--u)) calc(40px * var(--u)) rgba(0, 0, 0, 0.42),
+              inset 0 1px 0 rgba(255, 255, 255, 0.09);
+}
+
+/* ─────────────────────────────────────────────────────────
+   主题 2 · 极简（无底，只有字和一条竖线）
+   ───────────────────────────────────────────────────────── */
+body[data-theme="minimal"] .card {
+  background: transparent;
+  padding: calc(10px * var(--u)) 0;
+  padding-left: calc(16px * var(--u));
+  gap: calc(12px * var(--u));
+  border-left: calc(3px * var(--u)) solid var(--accent);
+}
+body[data-theme="minimal"] .cover-wrap { display: none; }
+body[data-theme="minimal"] .badge {
+  background: transparent;
+  border: calc(1px * var(--u)) solid rgba(255, 255, 255, 0.28);
+}
+
+/* ─────────────────────────────────────────────────────────
+   主题 3 · 霓虹（描边发光）
+   ───────────────────────────────────────────────────────── */
+body[data-theme="neon"] .card {
+  background: rgba(6, 4, 12, 0.72);
+  backdrop-filter: blur(calc(10px * var(--u)));
+  border: calc(1px * var(--u)) solid var(--accent);
+  box-shadow: 0 0 calc(22px * var(--u)) rgba(255, 107, 157, 0.35),
+              inset 0 0 calc(22px * var(--u)) rgba(255, 107, 157, 0.08);
+}
+/* 卡片开了 backdrop-filter 时，Chromium 某些合成路径会把带 text-shadow 的文字
+   整层丢掉（实测标题直接不渲染）。所以有底时不加阴影，透明模式下才加。 */
+body[data-theme="neon"] .title { color: #ffffff; text-shadow: none; }
+body[data-theme="neon"][data-bg="off"] .title { text-shadow: var(--text-shadow); }
+body[data-theme="neon"] .times { color: rgba(255, 255, 255, 0.7); }
+
+/* ─────────────────────────────────────────────────────────
+   主题 4 · 唱片（圆形封面 + 深色碟片质感）
+   ───────────────────────────────────────────────────────── */
+body[data-theme="vinyl"] .card {
+  background: rgba(12, 12, 14, 0.84);
+  border: calc(1px * var(--u)) solid rgba(255, 255, 255, 0.07);
+  border-radius: calc(14px * var(--u));
+  backdrop-filter: blur(calc(12px * var(--u)));
+  box-shadow: 0 calc(14px * var(--u)) calc(44px * var(--u)) rgba(0, 0, 0, 0.5);
+}
+body[data-theme="vinyl"] .cover-wrap {
+  border-radius: 999px;
+  box-shadow: 0 0 0 calc(6px * var(--u)) rgba(255, 255, 255, 0.04),
+              0 0 0 1px rgba(255, 255, 255, 0.12);
+  animation: spin 22s linear infinite;
+}
+body[data-theme="vinyl"] .cover-wrap.is-paused { animation-play-state: paused; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ─────────────────────────────────────────────────────────
+   主题 5 · 磁带（暖色、等宽）
+   ───────────────────────────────────────────────────────── */
+body[data-theme="tape"] .card {
+  background: rgba(28, 22, 18, 0.8);
+  border: calc(1px * var(--u)) solid rgba(255, 190, 120, 0.22);
+  backdrop-filter: blur(calc(8px * var(--u)));
+  border-radius: calc(6px * var(--u));
+}
+body[data-theme="tape"] .title { font-family: var(--mono); letter-spacing: 0.02em; }
+body[data-theme="tape"] .cover-wrap { border-radius: calc(4px * var(--u)); filter: sepia(0.25); }
+
+/* ─────────────────────────────────────────────────────────
+   主题 6 · 纯文字（只有标题和时长，最不挡画面）
+   ───────────────────────────────────────────────────────── */
+body[data-theme="text"] .card {
+  background: transparent;
+  padding: 0;
+  gap: 0;
+  width: auto;
+  max-width: calc(640px * var(--u));
+  display: block;
+}
+body[data-theme="text"] .cover-wrap { display: none; }
+body[data-theme="text"] .artist { display: none; }
+body[data-theme="text"] .badge-ghost { display: none; }
+body[data-theme="text"] .title { font-size: calc(22px * var(--u)); }
+
+/* ─────────────────────────────────────────────────────────
+   卡片背景总开关
+   关掉后所有主题一律透明：去掉底色、模糊、边框、投影，只留文字。
+   用 !important 是因为每套主题各自声明了 background，必须强行压过。
+   ───────────────────────────────────────────────────────── */
+body[data-bg="off"] .card {
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+body[data-bg="off"] .badge {
+  background: rgba(0, 0, 0, 0.35);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+body[data-bg="off"] .times { color: rgba(255, 255, 255, 0.78); }
+body[data-bg="off"] .times .t-now { color: #ffffff; }
+
+/* 预览模式：棋盘格底，一眼能看出哪里是透明的 */
+body.is-preview {
+  background: repeating-conic-gradient(#2b2b33 0% 25%, #232329 0% 50%) 50% / 28px 28px;
+}
+/* 卡片按 3 倍排版有 1260px 宽，普通浏览器窗口放不下。
+   预览时整体缩到能看全，真实像素宽度写在顶部提示里——
+   缩的是预览，不是 OBS 里的源尺寸。 */
+body.is-preview::before {
+  content: attr(data-tip);
+  position: fixed;
+  top: 10px;
+  left: 14px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.42);
+  letter-spacing: 0.02em;
+  pointer-events: none;
+  z-index: 9;
+}
+
+/* 无播放内容时淡出，避免空卡片挂在画面上 */
+.card.is-idle { opacity: 0; transform: translateY(6px); }

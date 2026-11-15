@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# 构建产物
+build/
+dist/
+*.spec
+
+# 用户数据：登录 cookie、歌单数据库、缓存全部在 LOCALAPPDATA，
+# 这里只防「有人手滑复制进来」
+*.db
+*.db-shm
+*.db-wal
+config.json
+*.cookies
+
+# 工作区临时文件
+_shots/
+.workbuddy/
+*.log
+.DS_Store
+Thumbs.db

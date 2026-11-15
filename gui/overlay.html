@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>点歌机叠加层</title>
+<link rel="stylesheet" href="css/overlay.css">
+</head>
+<body data-theme="glass" data-bg="on">
+
+<div class="stage" id="stage">
+  <div class="card" id="card">
+    <div class="cover-wrap">
+      <img class="cover" id="cover" alt="">
+      <div class="cover-empty" id="cover-empty"></div>
+    </div>
+
+    <div class="info">
+      <div class="title" id="title">等待点歌</div>
+      <div class="artist" id="artist">—</div>
+
+      <div class="meta">
+        <span class="badge" id="requester" hidden></span>
+        <span class="badge badge-ghost" id="fallback" hidden>已换源</span>
+      </div>
+
+      <div class="times" id="times">
+        <span class="t-now" id="time-current">0:00</span>
+        <span class="t-sep">/</span>
+        <span class="t-total" id="time-duration">0:00</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="js/overlay.js"></script>
+</body>
+</html>

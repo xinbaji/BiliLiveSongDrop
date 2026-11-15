@@ -1,0 +1,5 @@
+pywebview>=6.0
+aiohttp>=3.9
+brotli>=1.1
+qrcode[pil]>=7.4
+pillow>=10.0
