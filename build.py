@@ -97,6 +97,12 @@ def make_zip() -> None:
 
 
 def main() -> int:
+    # GitHub 的 Windows runner 控制台是 cp1252，中文 print 直接 UnicodeEncodeError。
+    # 强制 UTF-8 并把无法编码的字符替换掉，保证任何环境下都能跑完。
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
     parser = argparse.ArgumentParser(description=f"打包 {APP_NAME}")
     parser.add_argument("--clean", action="store_true", help="构建前清理旧产物")
     args = parser.parse_args()
